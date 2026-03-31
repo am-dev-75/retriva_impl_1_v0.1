@@ -7,6 +7,7 @@
 ## Phase 2
 - implement `wget`-mirror discovery
 - implement HTML content extraction and normalization
+- implement `wget` canonical URL reconstruction and relative link unrolling
 - implement section-aware chunking
 - add parser/chunker tests
 

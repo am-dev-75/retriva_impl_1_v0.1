@@ -1,0 +1,41 @@
+import urllib.parse
+from pathlib import Path
+from retriva.config import settings
+
+def source_to_canonical(source_path: str) -> str:
+    """
+    Converts a local mirror file path back to its canonical URL.
+    Takes into account wget's domain translation and index.html standardizations.
+    """
+    base = Path(settings.mirror_base_path).resolve()
+    target = Path(source_path).resolve()
+    
+    try:
+        rel = target.relative_to(base)
+    except ValueError:
+        return ""
+        
+    rel_str = str(rel)
+    
+    # Typically wget puts files under mirror_base_path/domain.com/
+    canonical_domain = urllib.parse.urlparse(settings.canonical_base_url).netloc
+    parts = rel.parts
+    
+    if parts and parts[0] == canonical_domain:
+        rel_str = "/".join(parts[1:])
+        
+    # Strip known extensions
+    if rel_str.endswith("index.html"):
+        rel_str = rel_str[:-10]
+    elif rel_str.endswith(".html"):
+        rel_str = rel_str[:-5]
+    elif rel_str.endswith(".htm"):
+        rel_str = rel_str[:-4]
+        
+    rel_str = rel_str.strip("/")
+    
+    canonical = settings.canonical_base_url.rstrip("/")
+    if rel_str:
+        canonical = f"{canonical}/{rel_str}"
+        
+    return canonical

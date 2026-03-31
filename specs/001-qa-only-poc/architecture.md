@@ -9,6 +9,7 @@ src/retriva/
   config.py
   cli.py
   domain/models.py
+  ingestion/mirror.py
   ingestion/discover.py
   ingestion/html_parser.py
   ingestion/normalize.py
@@ -25,9 +26,9 @@ src/retriva/
 
 ## Pipelines
 ### Ingestion
-1. discover candidate HTML files from the local `wget` mirror
+1. discover candidate HTML files from the local `wget` mirror (`MIRROR_BASE_PATH`)
 2. parse and isolate main content using explicit selectors (`#content`, `#mw-content-text`, `main`, `.mw-parser-output`), removing boilerplate (nav, footer, script, style)
-3. normalize extracted text and capture canonical document IDs
+3. normalize extracted text, resolving `wget`'s rewritten local links to absolute canonical URLs (`CANONICAL_BASE_URL`)
 4. build section-aware chunks
 5. compute embeddings
 6. upsert into Qdrant
