@@ -4,6 +4,7 @@
     "python.terminal.activateEnvironment": true,
     "terminal.integrated.env.linux": {
         "VIRTUAL_ENV": "/home/llandre/.venvs/retriva-v0.1",
-        "PATH": "/home/llandre/.venvs/retriva-v0.1/bin:${env:PATH}"
+        "PATH": "/home/llandre/.venvs/retriva-v0.1/bin:${env:PATH}",
+        "PYTHONPATH": "${workspaceFolder}/src"
     }
 }
