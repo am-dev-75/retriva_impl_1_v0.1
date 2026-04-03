@@ -5,9 +5,11 @@ from retriva.ingestion.html_parser import extract_main_content, extract_title
 from retriva.ingestion.chunker import create_chunks
 from retriva.domain.models import ParsedDocument
 from retriva.indexing.qdrant_store import get_client, init_collection, upsert_chunks, COLLECTION_NAME
+from retriva.logger import setup_logging, get_logger
 
+logger = get_logger(__name__)
 def run_ingest(files_limit: int = 0):
-    print("Discovering files...")
+    logger.info("Discovering files...")
     files = discover_html_files()
     if files_limit > 0:
         files = files[:files_limit]
@@ -16,12 +18,12 @@ def run_ingest(files_limit: int = 0):
     init_collection(client)
     
     for path in files:
-        print(f"Processing {path}...")
+        logger.info(f"Processing {path}...")
         try:
             with open(path, "r", encoding="utf-8") as f:
                 html = f.read()
         except Exception as e:
-            print(f"Error reading {path}: {e}")
+            logger.error(f"Error reading {path}: {e}")
             continue
             
         canonical = source_to_canonical(path)
@@ -41,9 +43,11 @@ def run_ingest(files_limit: int = 0):
         chunks = create_chunks(doc)
         upsert_chunks(client, chunks)
         
-    print("Ingestion complete!")
+    logger.info("Ingestion complete!")
 
 def main():
+    setup_logging()
+    
     parser = argparse.ArgumentParser(description="Retriva CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
     
@@ -58,7 +62,7 @@ def main():
     if args.command == "ingest":
         run_ingest(args.limit)
     elif args.command == "reindex":
-        print("Reindexing (clearing and ingesting)...")
+        logger.info("Reindexing (clearing and ingesting)...")
         client = get_client()
         if client.collection_exists(COLLECTION_NAME):
             client.delete_collection(COLLECTION_NAME)
