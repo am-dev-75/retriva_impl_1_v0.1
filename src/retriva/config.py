@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     
     qdrant_url: str = "http://192.168.1.64:6333"
     openai_api_key: str = "sk-mock-key"
-    openai_base_url: str = "https://192.168.1.64:8000/v1"
+    openai_base_url: str = "http://192.168.1.64:8000/v1"
     
     #embedding_model: str = "text-embedding-3-small"
     embedding_model: str = "Qwen/Qwen3-0.6B"
