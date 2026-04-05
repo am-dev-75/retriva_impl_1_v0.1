@@ -3,21 +3,74 @@ from typing import List
 from retriva.domain.models import Chunk, ChunkMetadata, ParsedDocument
 from retriva.logger import get_logger
 
+from retriva.config import settings
+
 logger = get_logger(__name__)
+
+def recursive_split_text(text: str, max_chars: int, overlap: int) -> List[str]:
+    """
+    Recursively splits text into chunks until each chunk is smaller than max_chars.
+    Attempts to split at \n, then at . , then at space.
+    """
+    text = text.strip()
+    if len(text) <= max_chars:
+        return [text]
+
+    # Ensure overlap is reasonable
+    actual_overlap = min(overlap, max_chars // 2)
+
+    separators = ["\n", ". ", " "]
+    for sep in separators:
+        if sep in text:
+            # Find the last occurrence of sep that keeps the left part within max_chars
+            split_idx = text.rfind(sep, 0, max_chars)
+            
+            # Ensure we actually make progress (split_idx > 0)
+            if split_idx > 0:
+                left = text[:split_idx].strip()
+                # The next part should include the overlap
+                overlap_start = max(0, split_idx - actual_overlap)
+                right = text[overlap_start:].strip()
+                
+                # Check if we made progress
+                if len(right) >= len(text):
+                    continue
+
+                chunks = [left]
+                if right:
+                    chunks.extend(recursive_split_text(right, max_chars, actual_overlap))
+                return chunks
+
+    # Hard cut if no separators found or they don't help
+    left = text[:max_chars].strip()
+    right = text[max_chars - actual_overlap:].strip()
+    
+    if len(right) >= len(text) or not right:
+        return [left]
+        
+    chunks = [left]
+    chunks.extend(recursive_split_text(right, max_chars, actual_overlap))
+    return chunks
 
 def create_chunks(document: ParsedDocument) -> List[Chunk]:
     """
-    Splits the parsed document text into paragraph-level chunks.
-    Assumes section details could be augmented later if needed.
+    Splits the parsed document text into chunks under the character limit.
     """
     paragraphs = [p.strip() for p in document.content_text.split("\n\n") if p.strip()]
-    logger.debug(f"Splitting '{document.source_path}' into {len(paragraphs)} paragraphs...")
+    logger.debug(f"Splitting '{document.source_path}' into {len(paragraphs)} initial paragraphs...")
     
+    final_texts = []
+    for para in paragraphs:
+        if len(para) > settings.max_chunk_chars:
+            logger.info(f"Paragraph too long ({len(para)} chars), splitting recursively...")
+            split_para = recursive_split_text(para, settings.max_chunk_chars, settings.chunk_overlap)
+            final_texts.extend(split_para)
+        else:
+            final_texts.append(para)
+            
     chunks = []
-    for idx, para in enumerate(paragraphs):
+    for idx, text in enumerate(final_texts):
         chunk_id = hashlib.md5(f"{document.canonical_doc_id}_{idx}".encode("utf-8")).hexdigest()
-        logger.info(f"Creating chunk (chunk_id = {chunk_id} ...)")
-        logger.info(f"Populating metadata ...")
         meta = ChunkMetadata(
             doc_id=document.canonical_doc_id,
             source_path=document.source_path,
@@ -29,7 +82,7 @@ def create_chunks(document: ParsedDocument) -> List[Chunk]:
             language="en"
         )
         
-        chunk = Chunk(text=para, metadata=meta)
+        chunk = Chunk(text=text, metadata=meta)
         chunks.append(chunk)
         
     document.chunks = chunks

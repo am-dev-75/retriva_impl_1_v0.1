@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     embedding_model: str = "ibm-granite/granite-embedding-english-r2"
     embedding_dimension: int = 768
     #chat_model: str = "gpt-4o-mini"
-    chat_model: str = "Qwen/Qwen3-0.6B"
+    # Chunking
+    max_chunk_chars: int = 12000
+    chunk_overlap: int = 500
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
