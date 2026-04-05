@@ -30,26 +30,30 @@ def upsert_chunks(client: QdrantClient, chunks: List[Chunk]):
     if not chunks:
         return
         
-    texts = [c.text for c in chunks]
-    embeddings = get_embeddings(texts)
+    logger.info(f"Indexing {len(chunks)} chunks in batches of {settings.indexing_batch_size}...")
     
-    points = [
-        PointStruct(
-            id=c.metadata.chunk_id,
-            vector=embedding,
-            payload={
-                "text": c.text,
-                **c.metadata.model_dump()
-            }
+    for i in range(0, len(chunks), settings.indexing_batch_size):
+        batch_chunks = chunks[i : i + settings.indexing_batch_size]
+        texts = [c.text for c in batch_chunks]
+        embeddings = get_embeddings(texts)
+        
+        points = [
+            PointStruct(
+                id=c.metadata.chunk_id,
+                vector=embedding,
+                payload={
+                    "text": c.text,
+                    **c.metadata.model_dump()
+                }
+            )
+            for c, embedding in zip(batch_chunks, embeddings)
+        ]
+        
+        logger.debug(f"Upserting batch {i//settings.indexing_batch_size + 1} ({len(points)} points) to '{COLLECTION_NAME}'...")
+        client.upsert(
+            collection_name=COLLECTION_NAME,
+            points=points
         )
-        for c, embedding in zip(chunks, embeddings)
-    ]
-    
-    logger.debug(f"Upserting {len(points)} points to '{COLLECTION_NAME}'...")
-    client.upsert(
-        collection_name=COLLECTION_NAME,
-        points=points
-    )
 
 def search_chunks(client: QdrantClient, query_vector: List[float], top_k: int = 5) -> List[dict]:
     logger.debug(f"Searching top_{top_k} chunks in '{COLLECTION_NAME}'...")
