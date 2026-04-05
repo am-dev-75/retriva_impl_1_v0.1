@@ -1,6 +1,9 @@
 import urllib.parse
 from pathlib import Path
 from retriva.config import settings
+from retriva.logger import get_logger
+
+logger = get_logger(__name__)
 
 def source_to_canonical(source_path: str) -> str:
     """
@@ -13,6 +16,7 @@ def source_to_canonical(source_path: str) -> str:
     try:
         rel = target.relative_to(base)
     except ValueError:
+        logger.warning(f"File {source_path} is outside of mirror base path {base}.")
         return ""
         
     rel_str = str(rel)

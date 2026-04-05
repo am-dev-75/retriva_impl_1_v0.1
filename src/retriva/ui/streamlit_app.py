@@ -7,7 +7,12 @@ src_path = str(Path(__file__).resolve().parent.parent.parent)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+from retriva.logger import setup_logging, get_logger
 from retriva.qa.answerer import ask_question
+
+setup_logging()
+logger = get_logger(__name__)
+logger.info("Starting Streamlit UI...")
 
 st.set_page_config(
     page_title="Retriva - Q&A PoC",
