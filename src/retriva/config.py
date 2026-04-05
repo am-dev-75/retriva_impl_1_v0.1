@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     openai_base_url: str = "http://192.168.1.64:8000/v1"
     
     #embedding_model: str = "text-embedding-3-small"
-    embedding_model: str = "Qwen/Qwen3-0.6B"
+    embedding_model: str = "ibm-granite/granite-embedding-english-r2"
+    embedding_dimension: int = 768
     #chat_model: str = "gpt-4o-mini"
     chat_model: str = "Qwen/Qwen3-0.6B"
     
