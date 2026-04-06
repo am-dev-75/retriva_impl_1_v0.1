@@ -32,7 +32,7 @@ def ask_question(question: str, top_k: int = 5) -> dict:
     
     client = OpenAI(
         api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url
+        base_url=settings.chat_base_url
     )
     
     response = client.chat.completions.create(
@@ -41,7 +41,8 @@ def ask_question(question: str, top_k: int = 5) -> dict:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": question}
         ],
-        temperature=0.0
+        temperature=0.0,
+        top_p=1
     )
     
     return {

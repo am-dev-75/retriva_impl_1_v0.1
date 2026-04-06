@@ -20,12 +20,13 @@ class Settings(BaseSettings):
     
     qdrant_url: str = "http://192.168.1.64:6333"
     openai_api_key: str = "sk-mock-key"
-    openai_base_url: str = "http://192.168.1.64:8000/v1"
     
-    #embedding_model: str = "text-embedding-3-small"
+    embedding_base_url: str = "http://192.168.1.64:8000/v1"
+    chat_base_url: str = "http://192.168.1.64:8001/v1"
+    
     embedding_model: str = "ibm-granite/granite-embedding-english-r2"
     embedding_dimension: int = 768
-    #chat_model: str = "gpt-4o-mini"
+    chat_model: str = "ibm-granite/granite-4.0-h-1b"
     # Chunking
     max_chunk_chars: int = 12000
     chunk_overlap: int = 500
