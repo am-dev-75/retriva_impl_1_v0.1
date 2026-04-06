@@ -6,7 +6,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "ingest --limit 10"
+            //          "args": "ingest --limit 10"
+            "args": "ingest"
         }
     ]
 }
