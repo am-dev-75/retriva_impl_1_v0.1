@@ -71,9 +71,9 @@ def upsert_chunks(client: QdrantClient, chunks: List[Chunk]):
 
 def search_chunks(client: QdrantClient, query_vector: List[float], top_k: int = 5) -> List[dict]:
     logger.debug(f"Searching top_{top_k} chunks in '{COLLECTION_NAME}'...")
-    results = client.search(
+    results = client.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
+        query=query_vector,
         limit=top_k
     )
-    return [hit.payload for hit in results]
+    return [hit.payload for hit in results.points]
