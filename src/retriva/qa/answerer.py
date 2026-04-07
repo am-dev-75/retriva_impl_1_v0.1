@@ -30,8 +30,9 @@ def ask_question(question: str, top_k: int = 5) -> dict:
     
     system_prompt = build_prompt(question, chunks)
     
+    logger.debug(f"Connecting to chat model ({settings.chat_base_url})...")
     client = OpenAI(
-        api_key=settings.openai_api_key,
+        api_key=settings.chat_openai_api_key,
         base_url=settings.chat_base_url
     )
     

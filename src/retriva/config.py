@@ -13,25 +13,46 @@
 # limitations under the License.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
     mirror_base_path: str = "./mirror"
     canonical_base_url: str = "https://wiki.dave.eu"
     
     qdrant_url: str = "http://192.168.1.64:6333"
-    openai_api_key: str = "sk-mock-key"
+    local_openai_api_key: str = "sk-mock-key"
+    openrouter_openai_api_key: str = ""
     
-    embedding_base_url: str = "http://192.168.1.64:8000/v1"
-    chat_base_url: str = "http://192.168.1.64:8001/v1"
+    # Embedding model
+    embedding_base_url: str = "https://openrouter.ai/api/v1"
+    embedding_model: str = "baai/bge-m3"
+    embedding_dimension: int = 1024
+    embedding_openai_api_key: Optional[str] = None
+
+    # Image model
+    image_base_url: str = "https://openrouter.ai/api/v1"
+    image_model: str = "qwen/qwen3-vl-32b-instruct"
+    image_openai_api_key: Optional[str] = None
     
-    embedding_model: str = "ibm-granite/granite-embedding-english-r2"
-    embedding_dimension: int = 768
-    chat_model: str = "ibm-granite/granite-4.0-h-1b"
+    # Chat model
+    chat_base_url: str = "https://openrouter.ai/api/v1"
+    chat_model: str = "qwen/qwen3.5-27b"
+    chat_openai_api_key: Optional[str] = None
+
     # Chunking
     max_chunk_chars: int = 12000
     chunk_overlap: int = 500
     indexing_batch_size: int = 50
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    def model_post_init(self, __context) -> None:
+        """Fall back per-service API keys to the shared openrouter key."""
+        if not self.embedding_openai_api_key:
+            self.embedding_openai_api_key = self.openrouter_openai_api_key
+        if not self.image_openai_api_key:
+            self.image_openai_api_key = self.openrouter_openai_api_key
+        if not self.chat_openai_api_key:
+            self.chat_openai_api_key = self.openrouter_openai_api_key
 
 settings = Settings()
