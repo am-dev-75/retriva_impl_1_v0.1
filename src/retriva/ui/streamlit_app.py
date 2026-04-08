@@ -23,6 +23,7 @@ if src_path not in sys.path:
 
 from retriva.logger import setup_logging, get_logger
 from retriva.qa.answerer import ask_question
+from retriva.config import settings
 
 setup_logging()
 logger = get_logger(__name__)
@@ -77,11 +78,26 @@ if prompt := st.chat_input("Ask a question about the mirrored corpus (English or
     with st.chat_message("assistant"):
         with st.spinner("Searching local mirror..."):
             try:
-                response_data = ask_question(prompt, top_k=5)
+                response_data = ask_question(prompt, settings.top_k)
                 answer = response_data["answer"]
                 chunks = response_data["retrieved_chunks"]
+                grounding = response_data.get("grounding", {})
                 
                 st.markdown(answer)
+                
+                # Grounding validation badge
+                if grounding:
+                    if grounding.get("grounded"):
+                        st.success(
+                            f"✅ Grounded — {len(grounding.get('citations_found', []))} citation(s), "
+                            f"{grounding.get('overlap_score', 0):.0%} overlap"
+                        )
+                    elif grounding.get("is_refusal"):
+                        st.info("ℹ️ The model declined to answer due to insufficient evidence.")
+                    else:
+                        st.warning("⚠️ Grounding check failed — answer may not be fully supported by the knowledge base.")
+                        for w in grounding.get("warnings", []):
+                            st.caption(f"• {w}")
                 
                 if chunks:
                     with st.expander("View Retrieval Context & Citations"):
