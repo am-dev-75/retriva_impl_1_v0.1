@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.http.exceptions import ResponseHandlingException
 from retriva.config import settings
 from retriva.domain.models import Chunk
 from retriva.indexing.embeddings import get_embeddings
@@ -23,6 +25,8 @@ from typing import List
 logger = get_logger(__name__)
 
 COLLECTION_NAME = "retriva_chunks"
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2.0  # seconds
 
 def get_client() -> QdrantClient:
     return QdrantClient(url=settings.qdrant_url)
@@ -40,6 +44,28 @@ def init_collection(client: QdrantClient, vector_size: int = None):
     else:
         logger.debug(f"Collection '{COLLECTION_NAME}' already exists.")
 
+def _upsert_with_retry(client: QdrantClient, points: List[PointStruct], batch_num: int):
+    """Upsert points to Qdrant with retry logic."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            client.upsert(
+                collection_name=COLLECTION_NAME,
+                points=points
+            )
+            return
+        except (ResponseHandlingException, Exception) as e:
+            delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+            if attempt < MAX_RETRIES:
+                logger.warning(
+                    f"Upsert batch {batch_num} attempt {attempt}/{MAX_RETRIES} failed: {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+            else:
+                raise RuntimeError(
+                    f"Upsert batch {batch_num} failed after {MAX_RETRIES} attempts: {e}"
+                ) from e
+
 def upsert_chunks(client: QdrantClient, chunks: List[Chunk]):
     if not chunks:
         return
@@ -48,6 +74,7 @@ def upsert_chunks(client: QdrantClient, chunks: List[Chunk]):
     
     for i in range(0, len(chunks), settings.indexing_batch_size):
         batch_chunks = chunks[i : i + settings.indexing_batch_size]
+        batch_num = i // settings.indexing_batch_size + 1
         texts = [c.text for c in batch_chunks]
         embeddings = get_embeddings(texts)
         
@@ -63,11 +90,9 @@ def upsert_chunks(client: QdrantClient, chunks: List[Chunk]):
             for c, embedding in zip(batch_chunks, embeddings)
         ]
         
-        logger.debug(f"Upserting batch {i//settings.indexing_batch_size + 1} ({len(points)} points) to '{COLLECTION_NAME}'...")
-        client.upsert(
-            collection_name=COLLECTION_NAME,
-            points=points
-        )
+        logger.debug(f"Upserting batch {batch_num} ({len(points)} points) to '{COLLECTION_NAME}'...")
+        _upsert_with_retry(client, points, batch_num)
+
 
 def search_chunks(client: QdrantClient, query_vector: List[float], top_k: int = 5) -> List[dict]:
     logger.debug(f"Searching top_{top_k} chunks in '{COLLECTION_NAME}'...")
