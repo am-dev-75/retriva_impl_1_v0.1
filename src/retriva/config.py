@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     max_chunk_chars: int = 12000
     chunk_overlap: int = 500
     indexing_batch_size: int = 50
+
+    # Retrieving stuff
+    top_k: int = 200
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
