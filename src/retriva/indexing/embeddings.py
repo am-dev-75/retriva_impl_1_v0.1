@@ -12,12 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 from openai import OpenAI
 from retriva.config import settings
 from retriva.logger import get_logger
 from typing import List
 
 logger = get_logger(__name__)
+
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2.0  # seconds
+
+def _embed_batch(client: OpenAI, texts: List[str]) -> List[List[float]]:
+    """Embed a batch of texts with retry logic."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.embeddings.create(
+                input=texts,
+                model=settings.embedding_model
+            )
+            if not response.data:
+                raise ValueError("No embedding data received")
+            return [data.embedding for data in response.data]
+        except (ValueError, Exception) as e:
+            delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+            if attempt < MAX_RETRIES:
+                logger.warning(
+                    f"Embedding attempt {attempt}/{MAX_RETRIES} failed: {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+            else:
+                raise RuntimeError(
+                    f"Embedding failed after {MAX_RETRIES} attempts: {e}"
+                ) from e
 
 def get_embeddings(texts: List[str]) -> List[List[float]]:
     if not texts:
@@ -32,10 +60,25 @@ def get_embeddings(texts: List[str]) -> List[List[float]]:
     all_embeddings = []
     for i in range(0, len(texts), settings.indexing_batch_size):
         batch = texts[i : i + settings.indexing_batch_size]
-        response = client.embeddings.create(
-            input=batch,
-            model=settings.embedding_model
-        )
-        all_embeddings.extend([data.embedding for data in response.data])
+        batch_num = i // settings.indexing_batch_size + 1
+        try:
+            embeddings = _embed_batch(client, batch)
+            all_embeddings.extend(embeddings)
+        except RuntimeError:
+            # Batch failed after retries — fall back to one-by-one
+            logger.warning(
+                f"Batch {batch_num} failed after retries. "
+                f"Falling back to individual embedding for {len(batch)} texts..."
+            )
+            for j, text in enumerate(batch):
+                try:
+                    embeddings = _embed_batch(client, [text])
+                    all_embeddings.extend(embeddings)
+                except RuntimeError as e:
+                    logger.error(
+                        f"Skipping text {i + j} (len={len(text)}): {e}"
+                    )
+                    # Append a zero vector so indices stay aligned
+                    all_embeddings.append([0.0] * settings.embedding_dimension)
     
     return all_embeddings
